@@ -89,10 +89,10 @@ Full list in `scripts/yai.sh --help`. Most-used:
 | `YAI_CODEX_MODEL` | adapter default | override codex model |
 | `YAI_CODEX_SANDBOX` | `workspace-write` | sandbox mode for execute phase |
 | `YAI_CODEX_APPROVAL` | `never` | approval mode |
-| `YAI_CODEX_TIMEOUT_SECONDS` | `1800` | per-attempt timeout |
-| `YAI_CODEX_MAX_RETRIES` | `5` | runner-level retries (transport failures) |
-| `YAI_SEMANTIC_MAX_FIX_ROUNDS` | `3` | story-level fix rounds after soft_fail |
-| `YAI_FINAL_FIX_MAX_ROUNDS` | `3` | final-phase fix rounds after soft_fail |
+| `YAI_CODEX_TIMEOUT_SECONDS` | `3600` | per-attempt timeout |
+| `YAI_CODEX_MAX_RETRIES` | `10` | runner-level retries (transport failures) |
+| `YAI_SEMANTIC_MAX_FIX_ROUNDS` | `5` | story-level fix rounds after soft_fail |
+| `YAI_FINAL_FIX_MAX_ROUNDS` | `5` | final-phase fix rounds after soft_fail |
 | `YAI_EVAL_*` | inherits from `YAI_CODEX_*` | separate tuning for the evaluator |
 | `YAI_FINAL_EVAL_*` | inherits from `YAI_EVAL_*` | separate tuning for the final evaluator |
 

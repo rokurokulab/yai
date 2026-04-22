@@ -31,12 +31,12 @@ Environment:
     YAI_CODEX_SANDBOX          Codex sandbox mode (default: workspace-write)
     YAI_CODEX_APPROVAL         Codex approval policy (default: never)
     YAI_CODEX_ARGS             Extra shell-split args appended before the prompt
-    YAI_CODEX_TIMEOUT_SECONDS  Hard timeout for one Codex attempt (default: 1800)
-    YAI_CODEX_MAX_RETRIES      Retry count after the initial failed attempt (default: 5)
+    YAI_CODEX_TIMEOUT_SECONDS  Hard timeout for one Codex attempt (default: 3600)
+    YAI_CODEX_MAX_RETRIES      Retry count after the initial failed attempt (default: 10)
     YAI_CODEX_RETRY_WAIT_SECONDS
-                                 Base wait before retrying a retryable failure (default: 10)
+                                 Base wait before retrying a retryable failure (default: 15)
     YAI_CODEX_TERM_GRACE_SECONDS
-                                 Grace period between TERM and KILL on timeout (default: 5)
+                                 Grace period between TERM and KILL on timeout (default: 10)
 
   Eval:
     YAI_EVAL_MODEL             Optional evaluator model override
@@ -44,13 +44,13 @@ Environment:
     YAI_EVAL_SANDBOX           Evaluator sandbox mode (default: read-only)
     YAI_EVAL_APPROVAL          Evaluator approval policy (default: never)
     YAI_EVAL_ARGS              Extra shell-split evaluator args
-    YAI_EVAL_TIMEOUT_SECONDS   Hard timeout for one evaluator attempt (default: 1800)
+    YAI_EVAL_TIMEOUT_SECONDS   Hard timeout for one evaluator attempt (default: 3600)
     YAI_EVAL_RETRY_WAIT_SECONDS
-                                 Base wait before retrying a retryable evaluator failure (default: 10)
+                                 Base wait before retrying a retryable evaluator failure (default: 15)
     YAI_EVAL_TERM_GRACE_SECONDS
-                                 Grace period between TERM and KILL on evaluator timeout (default: 5)
+                                 Grace period between TERM and KILL on evaluator timeout (default: 10)
     YAI_EVAL_RUNNER_MAX_RETRIES
-                                 Runner retry count for evaluator transport failures (default: 0)
+                                 Runner retry count for evaluator transport failures (default: 3)
 
   Final eval:
     YAI_FINAL_EVAL_MODEL             Optional final evaluator model override
@@ -58,13 +58,13 @@ Environment:
     YAI_FINAL_EVAL_SANDBOX           Final evaluator sandbox mode (default: read-only)
     YAI_FINAL_EVAL_APPROVAL          Final evaluator approval mode (default: never)
     YAI_FINAL_EVAL_ARGS              Extra shell-split final evaluator args
-    YAI_FINAL_EVAL_TIMEOUT_SECONDS   Hard timeout for one final evaluator attempt (default: 1800)
+    YAI_FINAL_EVAL_TIMEOUT_SECONDS   Hard timeout for one final evaluator attempt (default: 3600)
     YAI_FINAL_EVAL_RETRY_WAIT_SECONDS
-                                       Base wait before retrying a retryable final evaluator failure (default: 10)
+                                       Base wait before retrying a retryable final evaluator failure (default: 15)
     YAI_FINAL_EVAL_TERM_GRACE_SECONDS
-                                       Grace period between TERM and KILL on final evaluator timeout (default: 5)
+                                       Grace period between TERM and KILL on final evaluator timeout (default: 10)
     YAI_FINAL_EVAL_RUNNER_MAX_RETRIES
-                                       Runner retry count for final evaluator transport failures (default: 0)
+                                       Runner retry count for final evaluator transport failures (default: 3)
 
 Behavior:
   - Writes per-attempt JSONL and stderr logs under <run-dir>
@@ -138,30 +138,30 @@ if [[ "$PURPOSE" == "execute" ]]; then
 	CODEX_SANDBOX="${YAI_CODEX_SANDBOX:-workspace-write}"
 	CODEX_APPROVAL="${YAI_CODEX_APPROVAL:-never}"
 	CODEX_ARGS="${YAI_CODEX_ARGS:-}"
-	CODEX_TIMEOUT_SECONDS="${YAI_CODEX_TIMEOUT_SECONDS:-1800}"
-	CODEX_MAX_RETRIES="${YAI_CODEX_MAX_RETRIES:-5}"
-	CODEX_RETRY_WAIT_SECONDS="${YAI_CODEX_RETRY_WAIT_SECONDS:-10}"
-	CODEX_TERM_GRACE_SECONDS="${YAI_CODEX_TERM_GRACE_SECONDS:-5}"
+	CODEX_TIMEOUT_SECONDS="${YAI_CODEX_TIMEOUT_SECONDS:-3600}"
+	CODEX_MAX_RETRIES="${YAI_CODEX_MAX_RETRIES:-10}"
+	CODEX_RETRY_WAIT_SECONDS="${YAI_CODEX_RETRY_WAIT_SECONDS:-15}"
+	CODEX_TERM_GRACE_SECONDS="${YAI_CODEX_TERM_GRACE_SECONDS:-10}"
 elif [[ "$PURPOSE" == "eval" ]]; then
 	CODEX_MODEL="${YAI_EVAL_MODEL:-${YAI_CODEX_MODEL:-}}"
 	CODEX_PROFILE="${YAI_EVAL_PROFILE:-${YAI_CODEX_PROFILE:-}}"
 	CODEX_SANDBOX="${YAI_EVAL_SANDBOX:-read-only}"
 	CODEX_APPROVAL="${YAI_EVAL_APPROVAL:-never}"
 	CODEX_ARGS="${YAI_EVAL_ARGS:-}"
-	CODEX_TIMEOUT_SECONDS="${YAI_EVAL_TIMEOUT_SECONDS:-1800}"
-	CODEX_MAX_RETRIES="${YAI_EVAL_RUNNER_MAX_RETRIES:-0}"
-	CODEX_RETRY_WAIT_SECONDS="${YAI_EVAL_RETRY_WAIT_SECONDS:-10}"
-	CODEX_TERM_GRACE_SECONDS="${YAI_EVAL_TERM_GRACE_SECONDS:-5}"
+	CODEX_TIMEOUT_SECONDS="${YAI_EVAL_TIMEOUT_SECONDS:-3600}"
+	CODEX_MAX_RETRIES="${YAI_EVAL_RUNNER_MAX_RETRIES:-3}"
+	CODEX_RETRY_WAIT_SECONDS="${YAI_EVAL_RETRY_WAIT_SECONDS:-15}"
+	CODEX_TERM_GRACE_SECONDS="${YAI_EVAL_TERM_GRACE_SECONDS:-10}"
 else
 	CODEX_MODEL="${YAI_FINAL_EVAL_MODEL:-${YAI_EVAL_MODEL:-${YAI_CODEX_MODEL:-}}}"
 	CODEX_PROFILE="${YAI_FINAL_EVAL_PROFILE:-${YAI_EVAL_PROFILE:-${YAI_CODEX_PROFILE:-}}}"
 	CODEX_SANDBOX="${YAI_FINAL_EVAL_SANDBOX:-read-only}"
 	CODEX_APPROVAL="${YAI_FINAL_EVAL_APPROVAL:-never}"
 	CODEX_ARGS="${YAI_FINAL_EVAL_ARGS:-${YAI_EVAL_ARGS:-}}"
-	CODEX_TIMEOUT_SECONDS="${YAI_FINAL_EVAL_TIMEOUT_SECONDS:-1800}"
-	CODEX_MAX_RETRIES="${YAI_FINAL_EVAL_RUNNER_MAX_RETRIES:-0}"
-	CODEX_RETRY_WAIT_SECONDS="${YAI_FINAL_EVAL_RETRY_WAIT_SECONDS:-10}"
-	CODEX_TERM_GRACE_SECONDS="${YAI_FINAL_EVAL_TERM_GRACE_SECONDS:-5}"
+	CODEX_TIMEOUT_SECONDS="${YAI_FINAL_EVAL_TIMEOUT_SECONDS:-3600}"
+	CODEX_MAX_RETRIES="${YAI_FINAL_EVAL_RUNNER_MAX_RETRIES:-3}"
+	CODEX_RETRY_WAIT_SECONDS="${YAI_FINAL_EVAL_RETRY_WAIT_SECONDS:-15}"
+	CODEX_TERM_GRACE_SECONDS="${YAI_FINAL_EVAL_TERM_GRACE_SECONDS:-10}"
 fi
 
 if ! command -v "$CODEX_BIN" >/dev/null 2>&1; then

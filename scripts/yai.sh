@@ -38,12 +38,12 @@ Environment:
     YAI_CODEX_SANDBOX           Sandbox mode for codex exec (default: workspace-write)
     YAI_CODEX_APPROVAL          Approval mode for codex exec (default: never)
     YAI_CODEX_ARGS              Extra shell-split Codex args, e.g. '--search'
-    YAI_CODEX_TIMEOUT_SECONDS   Hard timeout for one Codex attempt (default: 1800)
-    YAI_CODEX_MAX_RETRIES       Retry count after the initial failed attempt (default: 5)
+    YAI_CODEX_TIMEOUT_SECONDS   Hard timeout for one Codex attempt (default: 3600)
+    YAI_CODEX_MAX_RETRIES       Retry count after the initial failed attempt (default: 10)
     YAI_CODEX_RETRY_WAIT_SECONDS
-                                  Base wait before retrying a retryable failure (default: 10)
+                                  Base wait before retrying a retryable failure (default: 15)
     YAI_CODEX_TERM_GRACE_SECONDS
-                                  Grace period between TERM and KILL on timeout (default: 5)
+                                  Grace period between TERM and KILL on timeout (default: 10)
 
   Eval:
     YAI_EVAL_MODEL              Optional evaluator model override
@@ -51,14 +51,14 @@ Environment:
     YAI_EVAL_ARGS               Extra shell-split evaluator args
     YAI_EVAL_SANDBOX            Evaluator sandbox mode (default: read-only)
     YAI_EVAL_APPROVAL           Evaluator approval mode (default: never)
-    YAI_EVAL_TIMEOUT_SECONDS    Hard timeout for one evaluator attempt (default: 1800)
-    YAI_EVAL_MAX_RETRIES        Outer-loop evaluator infra retries (default: 2)
-    YAI_EVAL_RETRY_WAIT_SECONDS Base wait before retrying evaluator infra failures (default: 10)
-    YAI_EVAL_TERM_GRACE_SECONDS Grace period between TERM and KILL on evaluator timeout (default: 5)
-    YAI_EVAL_RUNNER_MAX_RETRIES Runner retry count for evaluator transport failures (default: 0)
+    YAI_EVAL_TIMEOUT_SECONDS    Hard timeout for one evaluator attempt (default: 3600)
+    YAI_EVAL_MAX_RETRIES        Outer-loop evaluator infra retries (default: 5)
+    YAI_EVAL_RETRY_WAIT_SECONDS Base wait before retrying evaluator infra failures (default: 15)
+    YAI_EVAL_TERM_GRACE_SECONDS Grace period between TERM and KILL on evaluator timeout (default: 10)
+    YAI_EVAL_RUNNER_MAX_RETRIES Runner retry count for evaluator transport failures (default: 3)
 
   Semantic loop:
-    YAI_SEMANTIC_MAX_FIX_ROUNDS Fix rounds after evaluator soft-fail (default: 3)
+    YAI_SEMANTIC_MAX_FIX_ROUNDS Fix rounds after evaluator soft-fail (default: 5)
 
   Final eval:
     YAI_FINAL_EVAL_MODEL        Optional final evaluator model override
@@ -67,15 +67,15 @@ Environment:
     YAI_FINAL_EVAL_SANDBOX      Final evaluator sandbox mode (default: read-only)
     YAI_FINAL_EVAL_APPROVAL     Final evaluator approval mode (default: never)
     YAI_FINAL_EVAL_TIMEOUT_SECONDS
-                                  Hard timeout for one final evaluator attempt (default: 1800)
-    YAI_FINAL_EVAL_MAX_RETRIES  Outer-loop final evaluator infra retries (default: 2)
+                                  Hard timeout for one final evaluator attempt (default: 3600)
+    YAI_FINAL_EVAL_MAX_RETRIES  Outer-loop final evaluator infra retries (default: 5)
     YAI_FINAL_EVAL_RETRY_WAIT_SECONDS
-                                  Base wait before retrying final evaluator infra failures (default: 10)
+                                  Base wait before retrying final evaluator infra failures (default: 15)
     YAI_FINAL_EVAL_TERM_GRACE_SECONDS
-                                  Grace period between TERM and KILL on final evaluator timeout (default: 5)
+                                  Grace period between TERM and KILL on final evaluator timeout (default: 10)
     YAI_FINAL_EVAL_RUNNER_MAX_RETRIES
-                                  Runner retry count for final evaluator transport failures (default: 0)
-    YAI_FINAL_FIX_MAX_ROUNDS    Final corrective rounds after final soft-fail (default: 3)
+                                  Runner retry count for final evaluator transport failures (default: 3)
+    YAI_FINAL_FIX_MAX_ROUNDS    Final corrective rounds after final soft-fail (default: 5)
 
   Note:
     max-iterations limits one yai launch only; `.yai/prd.json` may contain more stories
@@ -93,12 +93,12 @@ MAX_ITERATIONS=10
 STATE_DIR="${YAI_STATE_DIR:-$ROOT_DIR/.yai}"
 ADOPT_DIRTY_STORY_ID=""
 ASSUME_YES=0
-YAI_EVAL_MAX_RETRIES="${YAI_EVAL_MAX_RETRIES:-2}"
-YAI_EVAL_RETRY_WAIT_SECONDS="${YAI_EVAL_RETRY_WAIT_SECONDS:-10}"
-YAI_SEMANTIC_MAX_FIX_ROUNDS="${YAI_SEMANTIC_MAX_FIX_ROUNDS:-3}"
-YAI_FINAL_EVAL_MAX_RETRIES="${YAI_FINAL_EVAL_MAX_RETRIES:-2}"
-YAI_FINAL_EVAL_RETRY_WAIT_SECONDS="${YAI_FINAL_EVAL_RETRY_WAIT_SECONDS:-10}"
-YAI_FINAL_FIX_MAX_ROUNDS="${YAI_FINAL_FIX_MAX_ROUNDS:-3}"
+YAI_EVAL_MAX_RETRIES="${YAI_EVAL_MAX_RETRIES:-5}"
+YAI_EVAL_RETRY_WAIT_SECONDS="${YAI_EVAL_RETRY_WAIT_SECONDS:-15}"
+YAI_SEMANTIC_MAX_FIX_ROUNDS="${YAI_SEMANTIC_MAX_FIX_ROUNDS:-5}"
+YAI_FINAL_EVAL_MAX_RETRIES="${YAI_FINAL_EVAL_MAX_RETRIES:-5}"
+YAI_FINAL_EVAL_RETRY_WAIT_SECONDS="${YAI_FINAL_EVAL_RETRY_WAIT_SECONDS:-15}"
+YAI_FINAL_FIX_MAX_ROUNDS="${YAI_FINAL_FIX_MAX_ROUNDS:-5}"
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
