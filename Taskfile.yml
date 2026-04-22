@@ -1,0 +1,29 @@
+# https://taskfile.dev — task runner.
+# Run `task --list` to see available recipes.
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks.
+    cmds:
+      - task --list
+
+  lint:
+    desc: Static checks (license headers + JSON/YAML schema + shellcheck).
+    cmds:
+      - hawkeye check
+      - 'find . -path ./.git -prune -o -name "*.json" -print | xargs -r -I{} jq empty {}'
+      - 'find .github/workflows \( -name "*.yml" -o -name "*.yaml" \) -print 2>/dev/null | xargs -r -I{} python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" {}'
+      - 'find . -path ./.git -prune -o \( -name "*.sh" -o -name "*.bash" \) -print | xargs -r shellcheck'
+
+  smoke:
+    desc: Run the mock-codex integration suite (all 11 scenarios, ~60-120s).
+    cmds:
+      - bash test/semantic-eval.sh
+
+  smoke-quick:
+    desc: Run 3 representative smoke scenarios (pass / soft_fix / final_fix).
+    cmds:
+      - bash test/semantic-eval.sh pass
+      - bash test/semantic-eval.sh soft_fix
+      - bash test/semantic-eval.sh final_fix

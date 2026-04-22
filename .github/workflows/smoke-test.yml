@@ -1,0 +1,27 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Mock-codex integration suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Ensure jq + shasum
+        run: |
+          set -euo pipefail
+          command -v jq >/dev/null || { sudo apt-get update && sudo apt-get install -y jq; }
+          command -v shasum >/dev/null || echo "shasum missing (fallback to sha256sum)"
+
+      - name: Run full semantic-eval integration suite
+        run: bash test/semantic-eval.sh

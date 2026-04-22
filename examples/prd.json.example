@@ -1,0 +1,33 @@
+{
+  "project": "yai-demo",
+  "branchName": "codex/example-feature",
+  "description": "Example yai plan for a small repo-local workflow task",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add a new helper script",
+      "description": "As a developer, I want one small workflow helper committed safely.",
+      "acceptanceCriteria": [
+        "The helper script is added in the intended location",
+        "The smallest relevant validation command passes",
+        "The change is committed with the expected story-scoped commit message"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Document how to use the helper",
+      "description": "As a developer, I want the new workflow explained in the repo docs.",
+      "acceptanceCriteria": [
+        "The usage docs are updated",
+        "Any repo-specific commands are accurate",
+        "The change is committed only after the relevant checks pass"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

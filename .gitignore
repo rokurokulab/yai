@@ -1,0 +1,26 @@
+# Editors / IDEs
+.vscode/
+.cursor/
+.idea/
+*.swp
+*~
+
+# OS
+**/.DS_Store
+
+# Local test/debug artifacts (NEVER commit; safety net for the
+# "smoke-test then cleanup" rule)
+tmp/
+/tmp/yai-test-*
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# yai runtime state (if users/smoke-tests create .yai/ at repo root)
+.yai/

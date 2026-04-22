@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & License
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: License headers (hawkeye)
+        uses: korandoru/hawkeye@v6
+        with:
+          config: licenserc.toml
+
+      - name: Validate JSON files
+        run: |
+          set -euo pipefail
+          find . -path ./.git -prune -o -name "*.json" -print | xargs -r -I{} jq empty {}
+
+      - name: Validate workflow YAML
+        run: |
+          set -euo pipefail
+          find .github/workflows \( -name "*.yml" -o -name "*.yaml" \) -print 2>/dev/null \
+            | xargs -r -I{} python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" {}
+
+      - name: Shellcheck
+        run: |
+          set -euo pipefail
+          find . -path ./.git -prune -o \( -name "*.sh" -o -name "*.bash" \) -print \
+            | xargs -r shellcheck
