@@ -19,7 +19,7 @@ set -euo pipefail
 usage() {
 	cat <<'EOF'
 Usage:
-  ./scripts/yai.sh [--tool codex] [--state-dir <path>] [--adopt-dirty-worktree <story-id>] [--yes] [max-iterations]
+  ./scripts/yai.sh [--tool codex|claude-code] [--state-dir <path>] [--adopt-dirty-worktree <story-id>] [--yes] [max-iterations]
 
 Examples:
   ./scripts/yai.sh
@@ -147,8 +147,14 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ "$TOOL" != "codex" ]]; then
-	echo "unsupported tool '$TOOL' in this repo-local integration; use --tool codex" >&2
+if [[ "$TOOL" != "codex" && "$TOOL" != "claude-code" ]]; then
+	echo "unsupported tool '$TOOL'; use --tool codex or --tool claude-code" >&2
+	exit 1
+fi
+
+ADAPTER_SCRIPT="$SCRIPT_DIR/adapters/$TOOL.sh"
+if [[ ! -x "$ADAPTER_SCRIPT" ]]; then
+	echo "adapter not found or not executable: $ADAPTER_SCRIPT" >&2
 	exit 1
 fi
 
@@ -184,7 +190,10 @@ ensure_prereqs() {
 	require_command git
 	require_command jq
 	require_command shasum
-	require_command "${YAI_CODEX_BIN:-codex}"
+	case "$TOOL" in
+		codex)       require_command "${YAI_CODEX_BIN:-codex}" ;;
+		claude-code) require_command "${YAI_CC_BIN:-claude}" ;;
+	esac
 	ensure_uint "YAI_EVAL_MAX_RETRIES" "$YAI_EVAL_MAX_RETRIES"
 	ensure_uint "YAI_EVAL_RETRY_WAIT_SECONDS" "$YAI_EVAL_RETRY_WAIT_SECONDS"
 	ensure_uint "YAI_SEMANTIC_MAX_FIX_ROUNDS" "$YAI_SEMANTIC_MAX_FIX_ROUNDS"
@@ -751,7 +760,7 @@ Canonical source of truth for this run:
 
 Review the current branch state against the whole PRD, not one individual story.
 
-Write no files except the final evaluator JSON response to the standard Codex last-message output path.
+Write no files except the final evaluator JSON response to the standard adapter last-message output path.
 The current canonical final eval artifact path is:
 - $final_eval_artifact
 
@@ -1381,7 +1390,7 @@ append_final_progress_entry() {
 	} >>"$PROGRESS_FILE"
 }
 
-run_codex_purpose() {
+run_adapter_purpose() {
 	local purpose="$1"
 	local prompt_file="$2"
 	local run_dir="$3"
@@ -1390,7 +1399,7 @@ run_codex_purpose() {
 	local temp_output="$last_message_file.run"
 	local rc=0
 
-	if "$SCRIPT_DIR/adapters/codex.sh" \
+	if "$ADAPTER_SCRIPT" \
 		--purpose "$purpose" \
 		--repo-root "$ROOT_DIR" \
 		--prompt-file "$prompt_file" \
@@ -1460,7 +1469,7 @@ process_story_iteration() {
 			write_active_story_checkpoint "$story_id" "$story_iteration" "$phase" "$fix_round" "$run_dir" "$execution_artifact_path" "$eval_artifact_path"
 
 			echo "  Running execution round for $story_id (fix_round=$fix_round)"
-			if run_codex_purpose "execute" "$exec_prompt" "$run_dir" "$exec_label"; then
+			if run_adapter_purpose "execute" "$exec_prompt" "$run_dir" "$exec_label"; then
 				exec_rc=0
 			else
 				exec_rc=$?
@@ -1517,7 +1526,7 @@ process_story_iteration() {
 				write_active_story_checkpoint "$story_id" "$story_iteration" "eval" "$fix_round" "$run_dir" "$execution_artifact_path" "$eval_artifact_path"
 
 				echo "  Running semantic eval for $story_id (fix_round=$fix_round attempt=$((eval_attempt + 1)))"
-				if run_codex_purpose "eval" "$eval_prompt" "$run_dir" "$eval_label"; then
+				if run_adapter_purpose "eval" "$eval_prompt" "$run_dir" "$eval_label"; then
 					eval_rc=0
 				else
 					eval_rc=$?
@@ -1628,7 +1637,7 @@ process_final_phase() {
 			write_active_story_checkpoint "FINAL" 0 "final_fix" "$fix_round" "$run_dir" "$final_fix_artifact_path" "$final_eval_artifact_path" "final"
 
 			echo "  Running final fix round $fix_round ($fix_mode)"
-			if run_codex_purpose "execute" "$fix_prompt" "$run_dir" "$fix_label"; then
+			if run_adapter_purpose "execute" "$fix_prompt" "$run_dir" "$fix_label"; then
 				fix_rc=0
 			else
 				fix_rc=$?
@@ -1686,7 +1695,7 @@ process_final_phase() {
 				write_active_story_checkpoint "FINAL" 0 "final_eval" "$fix_round" "$run_dir" "$final_fix_artifact_path" "$final_eval_artifact_path" "final"
 
 				echo "  Running final eval (fix_round=$fix_round attempt=$((eval_attempt + 1)))"
-				if run_codex_purpose "final-eval" "$eval_prompt" "$run_dir" "$eval_label"; then
+				if run_adapter_purpose "final-eval" "$eval_prompt" "$run_dir" "$eval_label"; then
 					eval_rc=0
 				else
 					eval_rc=$?
