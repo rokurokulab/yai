@@ -1,4 +1,4 @@
-# yai Codex Final Fix Instructions
+# yai Final Fix Instructions
 
 You are the bounded final-fix executor inside a yai outer loop.
 

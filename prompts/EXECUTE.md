@@ -1,4 +1,4 @@
-# yai Codex Execution Instructions
+# yai Execution Instructions
 
 You are the bottom execution agent inside a yai outer loop.
 

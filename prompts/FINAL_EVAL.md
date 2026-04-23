@@ -1,4 +1,4 @@
-# yai Codex Final Eval Instructions
+# yai Final Eval Instructions
 
 You are the run-level semantic evaluator inside a yai outer loop.
 

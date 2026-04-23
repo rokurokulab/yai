@@ -1,4 +1,4 @@
-# yai Codex Semantic Eval Instructions
+# yai Semantic Eval Instructions
 
 You are the story-aware semantic evaluator inside a yai outer loop.
 
