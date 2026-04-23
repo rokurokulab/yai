@@ -1,4 +1,4 @@
-# yai Codex Semantic Eval Instructions
+# yai Semantic Eval Instructions
 
 You are the story-aware semantic evaluator inside a yai outer loop.
 
@@ -48,6 +48,22 @@ Each entry must contain:
   - `unmet`
   - `unclear`
 - `evidence`
+
+### `findings`
+
+Array of strings. Each entry is a single sentence describing a specific gap, risk, or observation. Do NOT use objects.
+
+Example: `["AC-2 evidence relies on a green test that was not shown in the execution artifact."]`
+
+If there are no findings, use `[]`.
+
+### `requiredFixes`
+
+Array of strings. Each entry is a single concrete fix the implementor should apply. Do NOT use objects.
+
+Example: `["Add the missing chmod +x step before the commit."]`
+
+If no fixes are required, use `[]`.
 
 ### `verdictSummary`
 
