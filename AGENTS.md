@@ -5,17 +5,18 @@
 
 ## What yai is
 
-A bash-based agent loop harness:
+A bash-based agent loop harness. Runtime lives under `.yai/` inside the repo being driven; this source repo is also the template that ships those files.
 
-- `scripts/yai.sh` — tool-agnostic core (state machine, phase orchestration, artifact validation, retries, worktree ops, archive)
-- `scripts/adapters/codex.sh` — codex CLI adapter (invokes `codex exec`, retry/timeout, transport-failure classification)
-- `scripts/adapters/claude-code.sh` — claude-code CLI adapter (invokes `claude -p` with stream-json, extracts final assistant message, classifies failures)
-- `prompts/` — EXECUTE / EVAL / FINAL_EVAL / FINAL_FIX markdown templates, adapter-agnostic
+- `.yai/bin/yai.sh` — tool-agnostic core (state machine, phase orchestration, artifact validation, retries, worktree ops, archive)
+- `.yai/bin/adapters/codex.sh` — codex CLI adapter (invokes `codex exec`, retry/timeout, transport-failure classification)
+- `.yai/bin/adapters/claude-code.sh` — claude-code CLI adapter (invokes `claude -p` with stream-json, extracts final assistant message, classifies failures)
+- `.yai/prompts/` — EXECUTE / EVAL / FINAL_EVAL / FINAL_FIX markdown templates, adapter-agnostic
+- `install.sh` — one-shot installer that vendors `.yai/bin/` + `.yai/prompts/` into a target repo (see README Quickstart)
 - `test/semantic-eval.sh` — full integration suite with embedded mock codex (mock-claude coverage TBD)
 
 ## Design boundaries
 
-- **Core vs adapter split is load-bearing.** `yai.sh` must never call a tool CLI directly; always through `scripts/adapters/<tool>.sh --purpose ...`. Adapters are selected by `--tool <name>` (dispatch goes to `scripts/adapters/<name>.sh`). New adapters implement the same contract: accept `--purpose / --repo-root / --prompt-file / --run-dir / --iteration`, run the tool, write `<iteration>.last-message.txt` as the authoritative artifact, plus observability files (`events.jsonl`, `stderr.log`, `status.txt`). Classify failure on exit so the core can distinguish transport-retryable from terminal failures.
+- **Core vs adapter split is load-bearing.** `yai.sh` must never call a tool CLI directly; always through `.yai/bin/adapters/<tool>.sh --purpose ...`. Adapters are selected by `--tool <name>` (dispatch goes to `.yai/bin/adapters/<name>.sh`). New adapters implement the same contract: accept `--purpose / --repo-root / --prompt-file / --run-dir / --iteration`, run the tool, write `<iteration>.last-message.txt` as the authoritative artifact, plus observability files (`events.jsonl`, `stderr.log`, `status.txt`). Classify failure on exit so the core can distinguish transport-retryable from terminal failures.
 - **Artifacts are the source of truth.** Each phase emits a JSON file at a predetermined path. The core validates shape (`validate_*_core`), normalizes fields, and only then proceeds. Human-readable output (stdout/stderr) is advisory.
 - **State dir is flat + deterministic.** Everything lives under `YAI_STATE_DIR` (default `.yai/`). No writes outside that dir + the worktree commits.
 - **Checkpoint on every phase boundary.** `active-story.json` records `{storyId, phase, fixRound, executionArtifactPath, evalArtifactPath}` so an interrupted run can resume exactly.
@@ -36,17 +37,17 @@ A bash-based agent loop harness:
 
 ## Commit message conventions
 
-Conventional Commits. Scopes match top-level dirs when relevant:
+Conventional Commits. Scopes match top-level areas when relevant:
 
-- `feat(scripts): add X` — new feature in core/adapters
-- `fix(prompts): tighten Y` — bug fix in prompt templates
+- `feat(bin): add X` — new feature in core/adapters under `.yai/bin/`
+- `fix(prompts): tighten Y` — bug fix in prompt templates under `.yai/prompts/`
 - `docs: update README` — documentation-only
 - `test: cover Z scenario` — tests only
 - `ci:` / `chore:` — infrastructure / chores
 
 ## Testing
 
-`test/semantic-eval.sh` is the integration harness. It copies `scripts/yai.sh`, `scripts/adapters/codex.sh`, and `prompts/*.md` into a temp git repo, sets `YAI_CODEX_BIN` to a mock codex, and runs scenarios end-to-end. Add new codex scenarios by:
+`test/semantic-eval.sh` is the integration harness. It copies `.yai/bin/yai.sh`, `.yai/bin/adapters/codex.sh`, and `.yai/prompts/*.md` into a temp git repo, sets `YAI_CODEX_BIN` to a mock codex, and runs scenarios end-to-end. Add new codex scenarios by:
 
 1. Extend the mock codex heredoc (in the same file) to handle a new `YAI_TEST_SCENARIO` value.
 2. Add a `run_case_<name>()` test function.
@@ -57,7 +58,7 @@ The claude-code adapter currently has no CI coverage; a companion mock-claude + 
 
 ## License headers
 
-Bash scripts under `scripts/**/*.sh` and `test/**/*.sh` carry Apache-2.0 headers (enforced by [hawkeye](https://github.com/korandoru/hawkeye) via `licenserc.toml`). Prompts, JSON, TOML, YAML, and docs do not. New shell files must get a header via `hawkeye format` before commit.
+Bash scripts under `.yai/bin/**/*.sh`, `test/**/*.sh`, and `install.sh` carry Apache-2.0 headers (enforced by [hawkeye](https://github.com/korandoru/hawkeye) via `licenserc.toml`). Prompts, JSON, TOML, YAML, and docs do not. New shell files must get a header via `hawkeye format` before commit.
 
 ## Code style
 

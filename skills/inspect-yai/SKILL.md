@@ -174,7 +174,7 @@ ls -1 "$STATE_DIR/archive/" | sort -r | head -20
 
 ## 6. What NOT to do
 
-- **Don't delete** `.yai/active-story.json` manually to "unstick" a run — use `bash /path/to/yai/scripts/yai.sh --adopt-dirty-worktree <story-id|FINAL> --yes` instead. The checkpoint is load-bearing for resume.
+- **Don't delete** `.yai/active-story.json` manually to "unstick" a run — use `bash .yai/bin/yai.sh --adopt-dirty-worktree <story-id|FINAL> --yes` instead. The checkpoint is load-bearing for resume.
 - **Don't edit** `prd.json.userStories[].passes` by hand to fake completion — the completed-stories ledger + commits won't match and subsequent runs will be confused.
 - **Don't rely on `progress.txt`** alone for state — it's human-readable narrative, not the source of truth. JSON artifacts are canonical.
 - **Don't assume `iteration-NNN` equals the N-th story**. If a previous launch hit `MAX_ITERATIONS` and this is a resumption, the NNN numbering restarts at 001 for the new `runs/<TS>/` dir.

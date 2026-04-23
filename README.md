@@ -29,28 +29,31 @@ Requires `bash ≥ 4`, `git`, `jq`, `shasum` (or `sha256sum`), plus one of the s
 - [claude-code CLI](https://docs.claude.com/claude-code) for `--tool claude-code`
 
 ```sh
-# 1. Drop yai into your repo (or clone alongside and reference via absolute path)
-git clone https://github.com/rokurokulab/yai.git /path/to/yai
+# 1. From the root of your target repo, vendor yai into .yai/
+cd /path/to/your/repo
+curl -fsSL https://raw.githubusercontent.com/rokurokulab/yai/main/install.sh | bash
 
-# 2. Inside your target repo, create PRD
+# 2. Seed the PRD (the installer does not create prd.json)
 mkdir -p .yai
-cp /path/to/yai/examples/prd.json.example .yai/prd.json
+curl -fsSL https://raw.githubusercontent.com/rokurokulab/yai/main/examples/prd.json.example >.yai/prd.json
 echo "# PRD source notes (any context the evaluator should see)" >.yai/prd-source.md
 # edit .yai/prd.json — fill in your user stories
 
 # 3. Run (codex is the default)
-bash /path/to/yai/scripts/yai.sh
+bash .yai/bin/yai.sh
 
 # or drive with claude-code
-bash /path/to/yai/scripts/yai.sh --tool claude-code
+bash .yai/bin/yai.sh --tool claude-code
 ```
 
 Or cap the launch at N story iterations:
 
 ```sh
-bash /path/to/yai/scripts/yai.sh 5
-bash /path/to/yai/scripts/yai.sh --tool claude-code 5
+bash .yai/bin/yai.sh 5
+bash .yai/bin/yai.sh --tool claude-code 5
 ```
+
+The installer accepts `--version vX.Y.Z` (recommended), `--branch <name>`, `--commit <sha>`, `--uninstall`, and `--help`. Branch and commit modes skip SHA256 verification and print a warning; prefer tagged versions for normal use.
 
 ### Auth notes for `--tool claude-code`
 
@@ -92,7 +95,7 @@ bash /path/to/yai/scripts/yai.sh --tool claude-code 5
 
 ## Key environment variables
 
-Full list in `scripts/yai.sh --help` and per-adapter help (`scripts/adapters/<tool>.sh --help`). Most-used:
+Full list in `bash .yai/bin/yai.sh --help` and per-adapter help (`bash .yai/bin/adapters/<tool>.sh --help`). Most-used:
 
 Shared:
 
@@ -131,7 +134,7 @@ claude-code adapter (`--tool claude-code`):
 
 ## Prompts
 
-Tool-agnostic prompts live in `prompts/`:
+Tool-agnostic prompts live in `.yai/prompts/`:
 
 - `EXECUTE.md` — story-level execution instructions + artifact JSON contract
 - `EVAL.md` — story-level semantic evaluator + eval artifact JSON contract
@@ -140,15 +143,17 @@ Tool-agnostic prompts live in `prompts/`:
 
 ## Architecture
 
-Internal day-1 core/adapter split:
+Core/adapter split inside the vendored `.yai/` tree:
 
 ```
-scripts/
-├── yai.sh                    # tool-agnostic core: state machine, prompt rendering,
-│                             # artifact validation, retries, worktree ops
-└── adapters/
-    ├── codex.sh              # codex CLI adapter: codex exec invocation
-    └── claude-code.sh        # claude-code CLI adapter: claude -p stream-json
+.yai/
+├── bin/
+│   ├── yai.sh                # tool-agnostic core: state machine, prompt rendering,
+│   │                         # artifact validation, retries, worktree ops
+│   └── adapters/
+│       ├── codex.sh          # codex CLI adapter: codex exec invocation
+│       └── claude-code.sh    # claude-code CLI adapter: claude -p stream-json
+└── prompts/                  # EXECUTE / EVAL / FINAL_EVAL / FINAL_FIX templates
 ```
 
 Adapter contract: `adapter --purpose <execute|eval|final-eval> --repo-root <path> --prompt-file <path> --run-dir <path> --iteration <label>`. The adapter invokes the underlying tool and writes:
