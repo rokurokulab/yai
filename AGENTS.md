@@ -8,13 +8,14 @@
 A bash-based agent loop harness:
 
 - `scripts/yai.sh` — tool-agnostic core (state machine, phase orchestration, artifact validation, retries, worktree ops, archive)
-- `scripts/adapters/codex.sh` — codex-specific adapter (invokes `codex exec`, retry/timeout, transport-failure classification)
+- `scripts/adapters/codex.sh` — codex CLI adapter (invokes `codex exec`, retry/timeout, transport-failure classification)
+- `scripts/adapters/claude-code.sh` — claude-code CLI adapter (invokes `claude -p` with stream-json, extracts final assistant message, classifies failures)
 - `prompts/` — EXECUTE / EVAL / FINAL_EVAL / FINAL_FIX markdown templates, adapter-agnostic
-- `test/semantic-eval.sh` — full integration suite with embedded mock codex
+- `test/semantic-eval.sh` — full integration suite with embedded mock codex (mock-claude coverage TBD)
 
 ## Design boundaries
 
-- **Core vs adapter split is load-bearing.** `yai.sh` must never call `codex` directly; always through `scripts/adapters/codex.sh --purpose ...`. Future adapters implement the same contract: accept `--purpose`, run the tool, write an artifact JSON, classify failure on exit.
+- **Core vs adapter split is load-bearing.** `yai.sh` must never call a tool CLI directly; always through `scripts/adapters/<tool>.sh --purpose ...`. Adapters are selected by `--tool <name>` (dispatch goes to `scripts/adapters/<name>.sh`). New adapters implement the same contract: accept `--purpose / --repo-root / --prompt-file / --run-dir / --iteration`, run the tool, write `<iteration>.last-message.txt` as the authoritative artifact, plus observability files (`events.jsonl`, `stderr.log`, `status.txt`). Classify failure on exit so the core can distinguish transport-retryable from terminal failures.
 - **Artifacts are the source of truth.** Each phase emits a JSON file at a predetermined path. The core validates shape (`validate_*_core`), normalizes fields, and only then proceeds. Human-readable output (stdout/stderr) is advisory.
 - **State dir is flat + deterministic.** Everything lives under `YAI_STATE_DIR` (default `.yai/`). No writes outside that dir + the worktree commits.
 - **Checkpoint on every phase boundary.** `active-story.json` records `{storyId, phase, fixRound, executionArtifactPath, evalArtifactPath}` so an interrupted run can resume exactly.
@@ -45,12 +46,14 @@ Conventional Commits. Scopes match top-level dirs when relevant:
 
 ## Testing
 
-`test/semantic-eval.sh` is the integration harness. It copies `scripts/yai.sh`, `scripts/adapters/codex.sh`, and `prompts/*.md` into a temp git repo, sets `YAI_CODEX_BIN` to a mock codex, and runs scenarios end-to-end. Add new scenarios by:
+`test/semantic-eval.sh` is the integration harness. It copies `scripts/yai.sh`, `scripts/adapters/codex.sh`, and `prompts/*.md` into a temp git repo, sets `YAI_CODEX_BIN` to a mock codex, and runs scenarios end-to-end. Add new codex scenarios by:
 
 1. Extend the mock codex heredoc (in the same file) to handle a new `YAI_TEST_SCENARIO` value.
 2. Add a `run_case_<name>()` test function.
 3. Append the test function call at the bottom of the file.
 4. Run locally: `bash test/semantic-eval.sh <scenario>`.
+
+The claude-code adapter currently has no CI coverage; a companion mock-claude + smoke harness is tracked as follow-up work. Live end-to-end validation of the claude-code adapter (real CLI calls) is a local developer activity, not a CI step — CI never runs against real AI endpoints.
 
 ## License headers
 
