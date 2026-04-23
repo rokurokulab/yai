@@ -40,6 +40,14 @@ Write a single JSON object with these fields:
 - `proposedCommit`
 - `learnings`
 
+### `filesChanged`
+
+Array of strings. Each entry is a repo-relative path. Example: `["hello.sh", "README.md"]`. If nothing was changed, use `[]`.
+
+### `learnings`
+
+Array of strings. Each entry is one short sentence capturing something worth remembering for later stories. Do NOT use objects. If nothing, use `[]`.
+
 ### `mechanicalChecks`
 
 Each entry must contain:
