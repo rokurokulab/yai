@@ -5,62 +5,104 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/rokurokulab/yai)](https://github.com/rokurokulab/yai/releases)
 
-An agent loop harness that drives an LLM through a PRD, one story at a time, with a semantic evaluator on each round and a whole-PRD final review pass. Tool-agnostic core, swappable adapters — ships with codex and claude-code adapters.
+> An agent loop that turns a PRD into verified, committed work — one user story at a time.
 
-## What yai does
+yai calls an LLM (codex or claude-code) to execute each user story, runs a semantic evaluator over the result, commits on pass, and loops into bounded fix rounds on soft-fail. A whole-PRD review catches aggregate drift before the run ends. The core is tool-agnostic; new LLM CLIs plug in as adapters.
 
-Given a `prd.json` with a list of user stories, yai:
+## Contents
 
-1. Picks the next pending story.
-2. Calls the tool adapter to **execute** the story (code + mechanical checks + artifact JSON).
-3. Calls the adapter to **evaluate** the result semantically (`pass` / `soft_fail` / `hard_fail` / `infra_fail`).
-4. On `soft_fail`, loops into **fix** rounds (bounded, default 3).
-5. On `pass`, commits the story and moves to the next.
-6. After all stories pass, runs a **final eval** over the whole PRD. On soft-fail, loops into **final fix** rounds.
-7. Archives state, exits.
+- [Features](#features)
+- [Install](#install)
+- [Quickstart](#quickstart)
+- [How it works](#how-it-works)
+- [Configuration](#configuration)
+- [Adapters](#adapters)
+- [Prompts](#prompts)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [Inspired by](#inspired-by)
+- [License](#license)
 
-State lives in `.yai/` (prd.json, progress log, completed-stories ledger, per-run artifacts, archives). Resumable via `--adopt-dirty-worktree` for interrupted runs.
+## Features
+
+- **PRD-driven.** A single `.yai/prd.json` describes every user story for a run.
+- **Semantic evaluator.** Each story round is judged `pass` / `soft_fail` / `hard_fail` / `infra_fail`; only `pass` commits.
+- **Bounded fix loop.** `soft_fail` triggers up to N automated fix rounds before the harness stops.
+- **Whole-PRD final review.** After every story passes, a scope-drift check catches aggregate regressions.
+- **Tool-agnostic core.** Adapters for codex and claude-code; a contract for adding new CLIs.
+- **Resumable.** `.yai/active-story.json` plus `--adopt-dirty-worktree` recover an interrupted run.
+- **Artifact-first.** Every phase emits a validated JSON artifact; the human-readable log is advisory.
+
+## Install
+
+Requires `bash ≥ 4`, `git`, `jq`, `shasum` (or `sha256sum`), and one of [codex](https://github.com/openai/codex) or [claude-code](https://docs.claude.com/claude-code).
+
+From the root of your target repo:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/rokurokulab/yai/main/install.sh | bash
+```
+
+The installer vendors `.yai/bin/` and `.yai/prompts/` into the current directory.
+
+| Flag | Behaviour |
+|---|---|
+| _(default)_ | Install the latest release, verified against `SHA256SUMS.txt` |
+| `--version vX.Y.Z` | Pin to a release tag (recommended for reproducibility) |
+| `--branch <name>` | Install a branch tip; unverified, prints the resolved commit sha |
+| `--commit <sha>` | Install a specific commit; unverified |
+| `--uninstall` | Remove `.yai/bin/` and `.yai/prompts/`; state is preserved |
+| `--help` | Usage |
 
 ## Quickstart
 
-Requires `bash ≥ 4`, `git`, `jq`, `shasum` (or `sha256sum`), plus one of the supported CLIs:
+### 1. Install
 
-- [codex CLI](https://github.com/openai/codex) for `--tool codex` (default)
-- [claude-code CLI](https://docs.claude.com/claude-code) for `--tool claude-code`
+See [Install](#install) above.
+
+### 2. Seed the PRD
+
+The installer does not create `prd.json`. Copy the example and edit:
 
 ```sh
-# 1. From the root of your target repo, vendor yai into .yai/
-cd /path/to/your/repo
-curl -fsSL https://raw.githubusercontent.com/rokurokulab/yai/main/install.sh | bash
-
-# 2. Seed the PRD (the installer does not create prd.json)
 mkdir -p .yai
 curl -fsSL https://raw.githubusercontent.com/rokurokulab/yai/main/examples/prd.json.example >.yai/prd.json
-echo "# PRD source notes (any context the evaluator should see)" >.yai/prd-source.md
-# edit .yai/prd.json — fill in your user stories
-
-# 3. Run (codex is the default)
-bash .yai/bin/yai.sh
-
-# or drive with claude-code
-bash .yai/bin/yai.sh --tool claude-code
+echo "# PRD source notes (context for the evaluator)" >.yai/prd-source.md
+$EDITOR .yai/prd.json
 ```
 
-Or cap the launch at N story iterations:
+A minimal `prd.json` looks like:
+
+```json
+{
+  "project": "my-project",
+  "branchName": "yai/initial-features",
+  "description": "Short description of the run",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add hello.sh helper",
+      "description": "As a developer, I want a hello.sh script that prints 'hello world'.",
+      "acceptanceCriteria": [
+        "File hello.sh exists at repo root",
+        "Running ./hello.sh prints 'hello world'"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+```
+
+### 3. Run
 
 ```sh
-bash .yai/bin/yai.sh 5
-bash .yai/bin/yai.sh --tool claude-code 5
+bash .yai/bin/yai.sh                     # codex (default)
+bash .yai/bin/yai.sh --tool claude-code  # claude-code
+bash .yai/bin/yai.sh 5                   # cap at 5 story iterations
 ```
 
-The installer accepts `--version vX.Y.Z` (recommended), `--branch <name>`, `--commit <sha>`, `--uninstall`, and `--help`. Branch and commit modes skip SHA256 verification and print a warning; prefer tagged versions for normal use.
-
-### Auth notes for `--tool claude-code`
-
-- By default the adapter uses your interactive `claude` login (OAuth / keychain).
-- For isolated / CI-style runs without OAuth, set `YAI_CC_ARGS="--bare"` and provide `ANTHROPIC_API_KEY`. `--bare` makes `claude` ignore OAuth and keychain, so without an API key it will fail with "Not logged in".
-
-## Loop phases
+## How it works
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -93,104 +135,128 @@ The installer accepts `--version vX.Y.Z` (recommended), `--branch <name>`, `--co
 └────────────────────────────────────────────────────────────────┘
 ```
 
-## Key environment variables
+State lives under `.yai/` (PRD, progress log, completed-stories ledger, per-run artifacts, archives). An interrupted run resumes via `--adopt-dirty-worktree <story-id>`.
 
-Full list in `bash .yai/bin/yai.sh --help` and per-adapter help (`bash .yai/bin/adapters/<tool>.sh --help`). Most-used:
+## Configuration
 
-Shared:
+All configuration is via environment variables. Defaults work out of the box.
 
-| Variable | Default | What it does |
+**Shared**
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `YAI_STATE_DIR` | `<repo>/.yai` | State dir (prd.json, runs/, archive/) |
-| `YAI_SEMANTIC_MAX_FIX_ROUNDS` | `5` | story-level fix rounds after soft_fail |
-| `YAI_FINAL_FIX_MAX_ROUNDS` | `5` | final-phase fix rounds after soft_fail |
+| `YAI_STATE_DIR` | `<repo>/.yai` | State directory |
+| `YAI_SEMANTIC_MAX_FIX_ROUNDS` | `5` | Story-level fix rounds after `soft_fail` |
+| `YAI_FINAL_FIX_MAX_ROUNDS` | `5` | Final-phase fix rounds after `soft_fail` |
 
-Codex adapter (`--tool codex`, default):
+<details>
+<summary><b>Codex adapter</b> (<code>--tool codex</code>, default)</summary>
 
-| Variable | Default | What it does |
+| Variable | Default | Purpose |
 |---|---|---|
-| `YAI_CODEX_BIN` | `codex` | codex executable path |
-| `YAI_CODEX_MODEL` | adapter default | override codex model |
-| `YAI_CODEX_SANDBOX` | `workspace-write` | sandbox mode for execute phase |
-| `YAI_CODEX_APPROVAL` | `never` | approval mode |
-| `YAI_CODEX_TIMEOUT_SECONDS` | `3600` | per-attempt timeout |
-| `YAI_CODEX_MAX_RETRIES` | `10` | runner-level retries (transport failures) |
-| `YAI_EVAL_*` | inherits from `YAI_CODEX_*` | separate tuning for the evaluator |
-| `YAI_FINAL_EVAL_*` | inherits from `YAI_EVAL_*` | separate tuning for the final evaluator |
+| `YAI_CODEX_BIN` | `codex` | Executable path |
+| `YAI_CODEX_MODEL` | adapter default | Model override |
+| `YAI_CODEX_SANDBOX` | `workspace-write` | Sandbox mode for execute phase |
+| `YAI_CODEX_APPROVAL` | `never` | Approval mode |
+| `YAI_CODEX_TIMEOUT_SECONDS` | `3600` | Per-attempt timeout |
+| `YAI_CODEX_MAX_RETRIES` | `10` | Runner-level retries |
+| `YAI_EVAL_*` | inherits from `YAI_CODEX_*` | Evaluator tuning |
+| `YAI_FINAL_EVAL_*` | inherits from `YAI_EVAL_*` | Final evaluator tuning |
 
-claude-code adapter (`--tool claude-code`):
+Full reference: `bash .yai/bin/adapters/codex.sh --help`.
+</details>
 
-| Variable | Default | What it does |
+<details>
+<summary><b>claude-code adapter</b> (<code>--tool claude-code</code>)</summary>
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `YAI_CC_BIN` | `claude` | claude-code executable path |
-| `YAI_CC_MODEL` | CLI default | override claude model (alias `sonnet` / `opus` or full id) |
-| `YAI_CC_PERMISSION_MODE` | `dontAsk` | claude permission mode |
-| `YAI_CC_ALLOWED_TOOLS` | `Bash,Read,Edit,Write,Glob,Grep` | allowed tools for execute phase |
-| `YAI_CC_ARGS` | (empty) | extra shell-split args (e.g. `--bare` for strict CI isolation with API key) |
-| `YAI_CC_TIMEOUT_SECONDS` | `3600` | per-attempt timeout |
-| `YAI_CC_MAX_RETRIES` | `10` | runner-level retries (transport failures) |
-| `YAI_CC_EVAL_*` | inherits from `YAI_CC_*` | separate tuning for the evaluator (defaults to read-only tool set) |
-| `YAI_CC_FINAL_EVAL_*` | inherits from `YAI_CC_EVAL_*` | separate tuning for the final evaluator |
+| `YAI_CC_BIN` | `claude` | Executable path |
+| `YAI_CC_MODEL` | CLI default | Model override (`sonnet` / `opus` or full id) |
+| `YAI_CC_PERMISSION_MODE` | `dontAsk` | Permission mode |
+| `YAI_CC_ALLOWED_TOOLS` | `Bash,Read,Edit,Write,Glob,Grep` | Allowed tools for execute phase |
+| `YAI_CC_ARGS` | _(empty)_ | Extra shell-split args |
+| `YAI_CC_TIMEOUT_SECONDS` | `3600` | Per-attempt timeout |
+| `YAI_CC_MAX_RETRIES` | `10` | Runner-level retries |
+| `YAI_CC_EVAL_*` | inherits from `YAI_CC_*` | Evaluator tuning (defaults to read-only tool set) |
+| `YAI_CC_FINAL_EVAL_*` | inherits from `YAI_CC_EVAL_*` | Final evaluator tuning |
 
-## Prompts
+Full reference: `bash .yai/bin/adapters/claude-code.sh --help`.
+</details>
 
-Tool-agnostic prompts live in `.yai/prompts/`:
+### Authentication for claude-code
 
-- `EXECUTE.md` — story-level execution instructions + artifact JSON contract
-- `EVAL.md` — story-level semantic evaluator + eval artifact JSON contract
-- `FINAL_EVAL.md` — run-level PRD reviewer (scope drift, cross-story conflict, etc.)
-- `FINAL_FIX.md` — bounded corrective fix (addresses specific final-eval findings only)
+By default the adapter uses your interactive `claude` login (OAuth / keychain).
 
-## Architecture
+For isolated or CI-style runs without OAuth, set `YAI_CC_ARGS="--bare"` and provide `ANTHROPIC_API_KEY`. With `--bare`, `claude` ignores OAuth and keychain and will fail as "Not logged in" if no API key is present.
 
-Core/adapter split inside the vendored `.yai/` tree:
+## Adapters
 
 ```
 .yai/
 ├── bin/
-│   ├── yai.sh                # tool-agnostic core: state machine, prompt rendering,
-│   │                         # artifact validation, retries, worktree ops
+│   ├── yai.sh                  tool-agnostic core: state machine,
+│   │                           prompt rendering, artifact validation,
+│   │                           retries, worktree ops
 │   └── adapters/
-│       ├── codex.sh          # codex CLI adapter: codex exec invocation
-│       └── claude-code.sh    # claude-code CLI adapter: claude -p stream-json
-└── prompts/                  # EXECUTE / EVAL / FINAL_EVAL / FINAL_FIX templates
+│       ├── codex.sh            codex CLI adapter
+│       └── claude-code.sh      claude-code CLI adapter
+└── prompts/                    shared prompt templates
 ```
 
-Adapter contract: `adapter --purpose <execute|eval|final-eval> --repo-root <path> --prompt-file <path> --run-dir <path> --iteration <label>`. The adapter invokes the underlying tool and writes:
+Each adapter implements a single contract:
 
-- `<run-dir>/<iteration>.last-message.txt` — final assistant message (consumed by yai as the JSON artifact)
-- `<run-dir>/<iteration>.events.jsonl` — streamed events (observability)
-- `<run-dir>/<iteration>.stderr.log` — stderr (observability)
-- `<run-dir>/<iteration>.status.txt` — runner state / classification
-
-New adapters implement the same contract; the core doesn't change.
-
-## Testing
-
-All 11 scenarios use a mock codex (embedded in `test/semantic-eval.sh`). No real tool calls, no network, no token cost:
-
-```sh
-# full suite (~60–120s)
-bash test/semantic-eval.sh
-
-# single scenario
-bash test/semantic-eval.sh pass
-bash test/semantic-eval.sh soft_fix
-bash test/semantic-eval.sh final_fix
+```
+adapter --purpose <execute|eval|final-eval> \
+        --repo-root <path> \
+        --prompt-file <path> \
+        --run-dir <path> \
+        --iteration <label>
 ```
 
-Scenarios cover: basic pass, no-op pass, soft-fail-then-fix, eval infra retry, dirty worktree adoption, mechanical failure, final fix, final hard-fail, final infra retry, dirty final pass, missing prd-source.
+Outputs written under `<run-dir>`:
 
-## Attribution
+| File | Role |
+|---|---|
+| `<iteration>.last-message.txt` | Final assistant message (consumed by yai as the JSON artifact) |
+| `<iteration>.events.jsonl` | Streamed events (observability) |
+| `<iteration>.stderr.log` | Stderr (observability) |
+| `<iteration>.status.txt` | Runner state and failure classification |
 
-yai is inspired by [@snarktank/ralph](https://github.com/snarktank/ralph) — the same core idea (agent loop driven by a PRD) plus:
+New adapters implement the contract only; `yai.sh` needs no changes. See `.yai/bin/adapters/` for reference implementations.
 
-- **Semantic eval-fix loop** — every story round has an evaluator pass; `soft_fail` triggers bounded fix rounds
-- **Final eval + final fix** — whole-PRD review after all stories pass, with bounded corrective rounds for aggregate drift
-- **Retry / timeout policy** — per-purpose (execute / eval / final-eval) env-configurable, transport-failure classification
-- **Sandbox / approval config** — per-adapter, per-purpose (codex `workspace-write` / `read-only`; claude-code `permission-mode` + allowed-tool list)
-- **Checkpoint / resume** — `.yai/active-story.json` + `--adopt-dirty-worktree` for recovering interrupted runs
-- **Artifact validation** — every phase emits a typed JSON artifact; yai validates shape before proceeding
+## Prompts
+
+Prompts live in `.yai/prompts/` and are shared across adapters.
+
+| File | Role |
+|---|---|
+| `EXECUTE.md` | Story-level execution instructions + artifact JSON contract |
+| `EVAL.md` | Story-level semantic evaluator contract |
+| `FINAL_EVAL.md` | Whole-PRD reviewer (scope drift, cross-story conflict) |
+| `FINAL_FIX.md` | Bounded corrective fix (addresses final-eval findings only) |
+
+## Troubleshooting
+
+**`command not found: curl` or `jq`** — install via your package manager (e.g. `brew install jq curl` on macOS, `apt install jq curl` on Debian / Ubuntu).
+
+**Installer exits with `not inside a git worktree`** — `cd` into the root of the repo you want to install yai into, then re-run the curl command.
+
+**`Release vX.Y.Z does not publish SHA256SUMS`** — the release predates the SHA256SUMS publishing step. Install from a newer tag, or use `--branch main` / `--commit <sha>` (both skip verification and print a warning).
+
+**claude-code exits with `Not logged in · Please run /login`** — either log in once interactively with `claude`, or set `YAI_CC_ARGS="--bare"` together with `ANTHROPIC_API_KEY`. See [Authentication for claude-code](#authentication-for-claude-code).
+
+**`missing required command: codex`** — install the tool CLI you plan to use. yai warns but does not block at install time.
+
+**Resume after a crash** — yai checkpoints in `.yai/active-story.json`. Re-run with `--adopt-dirty-worktree <story-id> --yes` to resume the interrupted story with the current worktree.
+
+## Contributing
+
+See [AGENTS.md](AGENTS.md) for development workflow, commit scope rules, lint and test invocation, and release process. Bug reports and feature requests are welcome via [Issues](https://github.com/rokurokulab/yai/issues).
+
+## Inspired by
+
+yai builds on the PRD-driven agent-loop idea from [@snarktank/ralph](https://github.com/snarktank/ralph).
 
 ## License
 
