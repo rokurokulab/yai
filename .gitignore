@@ -22,5 +22,13 @@ tmp/
 logs/
 *.log
 
-# yai runtime state (if users/smoke-tests create .yai/ at repo root)
-.yai/
+# yai runtime state — vendored code under .yai/bin/ and .yai/prompts/
+# is tracked, along with the PRD files. Everything else is local state.
+.yai/runs/
+.yai/archive/
+.yai/active-story.json
+.yai/.last-branch
+.yai/.last-run
+.yai/.last-archive-key
+.yai/progress.txt
+.yai/completed-stories.json
