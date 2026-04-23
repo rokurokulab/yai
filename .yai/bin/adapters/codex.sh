@@ -19,7 +19,7 @@ set -euo pipefail
 usage() {
 	cat <<'EOF'
 Usage:
-  ./scripts/adapters/codex.sh --purpose <execute|eval|final-eval> --repo-root <path> --prompt-file <path> --run-dir <path> --iteration <label>
+  bash .yai/bin/adapters/codex.sh --purpose <execute|eval|final-eval> --repo-root <path> --prompt-file <path> --run-dir <path> --iteration <label>
 
 Environment:
   Shared:

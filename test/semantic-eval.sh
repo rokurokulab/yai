@@ -802,14 +802,14 @@ EOF
 
 setup_temp_repo() {
 	local repo_dir="$1"
-	mkdir -p "$repo_dir/scripts/adapters" "$repo_dir/prompts"
-	cp "$ROOT_DIR/scripts/yai.sh" "$repo_dir/scripts/yai.sh"
-	cp "$ROOT_DIR/scripts/adapters/codex.sh" "$repo_dir/scripts/adapters/codex.sh"
-	cp "$ROOT_DIR/prompts/EXECUTE.md" "$repo_dir/prompts/EXECUTE.md"
-	cp "$ROOT_DIR/prompts/EVAL.md" "$repo_dir/prompts/EVAL.md"
-	cp "$ROOT_DIR/prompts/FINAL_EVAL.md" "$repo_dir/prompts/FINAL_EVAL.md"
-	cp "$ROOT_DIR/prompts/FINAL_FIX.md" "$repo_dir/prompts/FINAL_FIX.md"
-	printf '.yai/\n.mock-state/\n' >"$repo_dir/.gitignore"
+	mkdir -p "$repo_dir/.yai/bin/adapters" "$repo_dir/.yai/prompts"
+	cp "$ROOT_DIR/.yai/bin/yai.sh" "$repo_dir/.yai/bin/yai.sh"
+	cp "$ROOT_DIR/.yai/bin/adapters/codex.sh" "$repo_dir/.yai/bin/adapters/codex.sh"
+	cp "$ROOT_DIR/.yai/prompts/EXECUTE.md" "$repo_dir/.yai/prompts/EXECUTE.md"
+	cp "$ROOT_DIR/.yai/prompts/EVAL.md" "$repo_dir/.yai/prompts/EVAL.md"
+	cp "$ROOT_DIR/.yai/prompts/FINAL_EVAL.md" "$repo_dir/.yai/prompts/FINAL_EVAL.md"
+	cp "$ROOT_DIR/.yai/prompts/FINAL_FIX.md" "$repo_dir/.yai/prompts/FINAL_FIX.md"
+	printf '.yai/*\n!.yai/bin/\n!.yai/prompts/\n.mock-state/\n' >"$repo_dir/.gitignore"
 	printf '# temp repo\n' >"$repo_dir/README.md"
 	make_mock_codex "$repo_dir/mock-codex.sh"
 	(
@@ -817,7 +817,7 @@ setup_temp_repo() {
 		git init -q
 		git config user.name "yai Test"
 		git config user.email "yai-test@example.com"
-		git add README.md .gitignore scripts prompts mock-codex.sh
+		git add README.md .gitignore .yai/bin .yai/prompts mock-codex.sh
 		git commit -q -m "chore: initialize test repo"
 	)
 }
@@ -877,7 +877,7 @@ run_case_pass() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="pass" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "pass scenario should mark story complete"
 	assert_eq "2" "$(git -C "$tmp_dir" rev-list --count HEAD)" "pass scenario should create one story commit"
@@ -906,7 +906,7 @@ run_case_no_op_pass() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="no_op_pass" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "no-op pass scenario should mark story complete"
 	assert_eq "1" "$(git -C "$tmp_dir" rev-list --count HEAD)" "no-op pass scenario should not create an empty story commit"
@@ -922,7 +922,7 @@ run_case_soft_fix() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="soft_fix" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "soft-fix scenario should mark story complete"
 	assert_file "$tmp_dir/.yai/runs/$(basename "$(cat "$tmp_dir/.yai/.last-run")")/iteration-001.fix-01.exec.story-result.json"
@@ -939,7 +939,7 @@ run_case_eval_infra_retry() {
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="eval_infra_retry" \
 		YAI_EVAL_MAX_RETRIES=2 \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "2" "$(cat "$tmp_dir/.mock-state/eval-infra-count")" "eval infra retry should rerun evaluator"
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "eval infra retry should eventually pass"
@@ -955,7 +955,7 @@ run_case_adopt() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="adopt" \
-		./scripts/yai.sh --state-dir .yai --adopt-dirty-worktree US-001 --yes 1
+		./.yai/bin/yai.sh --state-dir .yai --adopt-dirty-worktree US-001 --yes 1
 	)
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "adopt scenario should mark story complete"
 	assert_file "$tmp_dir/dirty.txt"
@@ -971,7 +971,7 @@ run_case_mechanical_failed() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="mechanical_failed" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	local rc=$?
 	set -e
@@ -988,7 +988,7 @@ run_case_final_fix() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="final_fix" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "true" "$(jq -r '.userStories[0].passes' "$tmp_dir/.yai/prd.json")" "final-fix scenario should preserve completed story state"
 	assert_file "$tmp_dir/.yai/runs/$(basename "$(cat "$tmp_dir/.yai/.last-run")")/final.fix-01.exec.fix-result.json"
@@ -1006,7 +1006,7 @@ run_case_final_hard_fail() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="final_hard_fail" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	local rc=$?
 	set -e
@@ -1025,7 +1025,7 @@ run_case_final_infra_retry() {
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="final_infra_retry" \
 		YAI_FINAL_EVAL_MAX_RETRIES=2 \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	assert_eq "2" "$(cat "$tmp_dir/.mock-state/final-infra-count")" "final infra retry should rerun the final evaluator"
 	assert_eq "pass" "$(jq -r '.status' "$tmp_dir/.yai/runs/$(basename "$(cat "$tmp_dir/.yai/.last-run")")/final.eval.semantic-eval.json")" "final infra retry should eventually pass"
@@ -1040,7 +1040,7 @@ run_case_final_pass_dirty() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="final_pass_dirty" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	local rc=$?
 	set -e
@@ -1051,7 +1051,7 @@ run_case_final_pass_dirty() {
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
 		YAI_TEST_SCENARIO="final_pass_dirty" \
-		./scripts/yai.sh --state-dir .yai --adopt-dirty-worktree FINAL --yes 1
+		./.yai/bin/yai.sh --state-dir .yai --adopt-dirty-worktree FINAL --yes 1
 	)
 	assert_file "$tmp_dir/.yai/runs/$(basename "$(cat "$tmp_dir/.yai/.last-run")")/final.fix-01.exec.fix-result.json"
 	assert_eq "3" "$(git -C "$tmp_dir" rev-list --count HEAD)" "final-pass-dirty scenario should create a final corrective commit"
@@ -1067,7 +1067,7 @@ run_case_missing_prd_source() {
 	(
 		cd "$tmp_dir"
 		YAI_CODEX_BIN="$tmp_dir/mock-codex.sh" \
-		./scripts/yai.sh --state-dir .yai 1
+		./.yai/bin/yai.sh --state-dir .yai 1
 	)
 	local rc=$?
 	set -e
