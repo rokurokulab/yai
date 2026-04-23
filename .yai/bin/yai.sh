@@ -19,13 +19,13 @@ set -euo pipefail
 usage() {
 	cat <<'EOF'
 Usage:
-  ./scripts/yai.sh [--tool codex|claude-code] [--state-dir <path>] [--adopt-dirty-worktree <story-id>] [--yes] [max-iterations]
+  bash .yai/bin/yai.sh [--tool codex|claude-code] [--state-dir <path>] [--adopt-dirty-worktree <story-id>] [--yes] [max-iterations]
 
 Examples:
-  ./scripts/yai.sh
-  ./scripts/yai.sh 20
-  ./scripts/yai.sh --state-dir .yai-smoke 1
-  ./scripts/yai.sh --adopt-dirty-worktree US-003 --yes
+  bash .yai/bin/yai.sh
+  bash .yai/bin/yai.sh 20
+  bash .yai/bin/yai.sh --state-dir .yai-smoke 1
+  bash .yai/bin/yai.sh --adopt-dirty-worktree US-003 --yes
 
 Environment:
   Shared:
@@ -84,7 +84,8 @@ EOF
 }
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+PROMPTS_DIR="$SCRIPT_DIR/../prompts"
 RUN_STARTED_EPOCH="$(date +%s)"
 RUN_DURATION_PRINTED=0
 
@@ -653,9 +654,9 @@ stop_for_dirty_worktree() {
 	echo "yai found a dirty worktree without an active checkpoint." >&2
 	show_dirty_worktree_summary >&2 || true
 	echo "Either clean the worktree first or adopt it explicitly:" >&2
-	echo "  ./scripts/yai.sh --adopt-dirty-worktree <story-id> --yes" >&2
+	echo "  bash .yai/bin/yai.sh --adopt-dirty-worktree <story-id> --yes" >&2
 	echo "If all stories are already complete and a passed final eval exists, you may instead adopt the current diff into FINAL:" >&2
-	echo "  ./scripts/yai.sh --adopt-dirty-worktree FINAL --yes" >&2
+	echo "  bash .yai/bin/yai.sh --adopt-dirty-worktree FINAL --yes" >&2
 	exit 1
 }
 
@@ -711,7 +712,7 @@ Do not modify:
 - $PROGRESS_FILE
 
 EOF
-	cat "$ROOT_DIR/prompts/EXECUTE.md" >>"$prompt_path"
+	cat "$PROMPTS_DIR/EXECUTE.md" >>"$prompt_path"
 }
 
 render_eval_prompt() {
@@ -740,7 +741,7 @@ Use these files as the yai source of truth:
 Review the current uncommitted worktree against the selected story.
 
 EOF
-	cat "$ROOT_DIR/prompts/EVAL.md" >>"$prompt_path"
+	cat "$PROMPTS_DIR/EVAL.md" >>"$prompt_path"
 }
 
 render_final_eval_prompt() {
@@ -765,7 +766,7 @@ The current canonical final eval artifact path is:
 - $final_eval_artifact
 
 EOF
-	cat "$ROOT_DIR/prompts/FINAL_EVAL.md" >>"$prompt_path"
+	cat "$PROMPTS_DIR/FINAL_EVAL.md" >>"$prompt_path"
 }
 
 render_final_fix_prompt() {
@@ -802,7 +803,7 @@ Current dirty worktree summary:
 $(show_dirty_worktree_summary)
 
 EOF
-	cat "$ROOT_DIR/prompts/FINAL_FIX.md" >>"$prompt_path"
+	cat "$PROMPTS_DIR/FINAL_FIX.md" >>"$prompt_path"
 }
 
 final_fix_mode_for_eval_artifact() {
@@ -825,7 +826,7 @@ To start:
 1. Create the state directory:
    mkdir -p "$(relative_to_root "$STATE_DIR")"
 2. Copy the example PRD:
-   cp scripts/prd.json.example "$(relative_to_root "$PRD_FILE")"
+   cp examples/prd.json.example "$(relative_to_root "$PRD_FILE")"
 3. Copy the source PRD markdown:
    cp /path/to/source-prd.md "$(relative_to_root "$PRD_SOURCE_FILE")"
 4. Edit the PRD stories for your feature.
@@ -1734,7 +1735,7 @@ process_final_phase() {
 						show_dirty_worktree_summary >&2 || true
 						echo "  Clean or stash those files and rerun yai." >&2
 						echo "  If this exact diff is intentionally part of the reviewed final state, adopt it explicitly:" >&2
-						echo "    ./scripts/yai.sh --state-dir $(relative_to_root "$STATE_DIR") --adopt-dirty-worktree FINAL --yes" >&2
+						echo "    bash .yai/bin/yai.sh --state-dir $(relative_to_root "$STATE_DIR") --adopt-dirty-worktree FINAL --yes" >&2
 						write_active_story_checkpoint "FINAL" 0 "final_eval" "$fix_round" "$run_dir" "$final_fix_artifact_path" "$final_eval_artifact_path" "final"
 						return 1
 					fi
